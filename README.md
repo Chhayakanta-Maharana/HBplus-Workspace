@@ -7,7 +7,7 @@ A cross-platform **React Native + React Native for Web** application built with 
 ## Live Demo & Evaluation Credentials
 
 - **Web App (Netlify — Desktop & Mobile Browser):** `https://<your-netlify-site>.netlify.app` *(update after deploying to Netlify)*
-- **Android App (Direct Installable APK via EAS Cloud):** `https://expo.dev/accounts/chhayakanta/projects/hbplus-workspace/builds` *(direct APK link will be updated once the EAS preview build completes)*
+- **Android App (Direct Installable APK + QR Code via EAS Cloud):** [Download & Install Android APK](https://expo.dev/accounts/chhayakanta/projects/hbplus-workspace/builds/159fc31f-4296-49ed-bf1f-fd0033bb62a3)
 
 ### Fixed Admin Credentials (For Quick Evaluation)
 
