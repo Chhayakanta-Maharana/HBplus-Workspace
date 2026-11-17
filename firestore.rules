@@ -1,0 +1,158 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    // Permanent fixed workspace admin account
+    function isFixedAdminEmail() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'admin@hbplus.fit';
+    }
+
+    // Enforce company email domain server-side (never trust the client alone).
+    // Note: For local testing with gmail.com, update the regex below to:
+    //   '^[^@]+@gmail\\.com$'
+    // and redeploy rules with `firebase deploy --only firestore:rules`.
+    function isAllowedDomain() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && (
+          request.auth.token.email.lower().matches('^[^@]+@hbplus\\.fit$')
+          || isFixedAdminEmail()
+        );
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isAllowedDomain()
+        && (
+          isFixedAdminEmail()
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          )
+        );
+    }
+
+    function isValidRole(role) {
+      return role == 'user' || role == 'admin';
+    }
+
+    function isValidTaskStatus(status) {
+      return status == 'pending' || status == 'in_progress' || status == 'completed';
+    }
+
+    function hasValidUserFields(data) {
+      return data.keys().hasOnly([
+        'email',
+        'name',
+        'photoURL',
+        'role',
+        'createdAt',
+        'lastLoginAt'
+      ])
+      && data.email is string
+      && data.name is string
+      && (data.photoURL is string || data.photoURL == null)
+      && isValidRole(data.role);
+    }
+
+    // -------------------------------------------------------------------------
+    // Users Collection: users/{uid}
+    // -------------------------------------------------------------------------
+    match /users/{uid} {
+      // Only authenticated users from the allowed domain can read workspace profiles
+      allow read: if isAllowedDomain();
+
+      // Create:
+      // 1) First-time self sign-in: users can create ONLY their own profile with role == 'user'
+      // 2) Admin provisioning: Admins can create a new member account with role 'user' or 'admin'
+      allow create: if isAllowedDomain()
+        && hasValidUserFields(request.resource.data)
+        && (
+          (
+            isOwner(uid)
+            && request.resource.data.email.lower() == request.auth.token.email.lower()
+            && request.resource.data.role == 'user'
+          )
+          || isAdmin()
+        );
+
+      // Update:
+      // 1) Self-update: name, photoURL, lastLoginAt ONLY — CANNOT change own role, email, or createdAt
+      // 2) Admin updating another workspace user's role ('admin' | 'user')
+      allow update: if isAllowedDomain()
+        && hasValidUserFields(request.resource.data)
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          (
+            isOwner(uid)
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['name', 'photoURL', 'lastLoginAt'])
+          )
+          || (
+            isAdmin()
+            && !isOwner(uid)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['role'])
+            && isValidRole(request.resource.data.role)
+          )
+        );
+
+      // Preserve audit trail; prevent client-side deletion
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Tasks Collection: tasks/{taskId}
+    // -------------------------------------------------------------------------
+    match /tasks/{taskId} {
+      // Admins can read all tasks; normal users can only read tasks assigned to them or to 'ALL'
+      allow read: if isAllowedDomain()
+        && (
+          isAdmin()
+          || resource.data.assigneeUid == request.auth.uid
+          || resource.data.assigneeUid == 'ALL'
+        );
+
+      // Only Admins can create / assign new tasks
+      allow create: if isAdmin()
+        && request.resource.data.title is string
+        && request.resource.data.assigneeUid is string
+        && isValidTaskStatus(request.resource.data.status);
+
+      // Admins can update any task; assigned users can only update status & updatedAt
+      allow update: if isAllowedDomain()
+        && isValidTaskStatus(request.resource.data.status)
+        && (
+          isAdmin()
+          || (
+            (
+              resource.data.assigneeUid == request.auth.uid
+              || resource.data.assigneeUid == 'ALL'
+            )
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'updatedAt'])
+          )
+        );
+
+      // Only Admins can delete tasks
+      allow delete: if isAdmin();
+    }
+
+    // Deny all other collections by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
