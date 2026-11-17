@@ -6,7 +6,7 @@ A cross-platform **React Native + React Native for Web** application built with 
 
 ## Live Demo & Evaluation Credentials
 
-- **Web App (Netlify — Desktop & Mobile Browser):** `https://<your-netlify-site>.netlify.app` *(update after deploying to Netlify)*
+- **Web App (Netlify — Desktop & Mobile Browser):** [https://hbpworkshop.netlify.app](https://hbpworkshop.netlify.app)
 - **Android App (Direct Installable APK + QR Code via EAS Cloud):** [Download & Install Android APK](https://expo.dev/accounts/chhayakanta/projects/hbplus-workspace/builds/159fc31f-4296-49ed-bf1f-fd0033bb62a3)
 
 ### Fixed Admin Credentials (For Quick Evaluation)
@@ -399,4 +399,4 @@ Produces the SPA bundle in `dist/` (including `dist/_redirects` copied from `pub
 1. Copy your live Netlify hostname (e.g., `your-site.netlify.app`).
 2. Add it to **Firebase Console → Authentication → Settings → Authorized domains**.
 3. Add `https://your-site.netlify.app` to **Authorized JavaScript origins** on your Google Web OAuth Client ID in Google Cloud Console.
-4. Update the **Live Demo** link at the top of this `README.md`.
+4. Live site deployed at: [https://hbpworkshop.netlify.app](https://hbpworkshop.netlify.app)
